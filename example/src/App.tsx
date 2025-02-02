@@ -1,20 +1,17 @@
-import { multiply } from 'react-native-timetable-2';
-import { Text, View, StyleSheet } from 'react-native';
+import Timetable from '../../src/index';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';  // Importe GestureHandlerRootView
 
-const result = multiply(3, 7);
+const events = [
+  { id: '1', title: 'Réunion', startTime: new Date(2024, 1, 29, 10, 0), endTime: new Date(2024, 1, 29, 11, 0), color: '#FF5733' },
+  { id: '2', title: 'Cours de React Native', startTime: new Date(2024, 1, 29, 14, 0), endTime: new Date(2024, 1, 29, 16, 0), color: '#33B5FF' }
+];
 
-export default function App() {
+const App = () => {
   return (
-    <View style={styles.container}>
-      <Text>Result: {result}</Text>
-    </View>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+            <Timetable events={events} mode="day" />
+    </GestureHandlerRootView>
   );
-}
+};
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
+export default App;

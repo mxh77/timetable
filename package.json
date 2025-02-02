@@ -183,5 +183,9 @@
     "languages": "js",
     "type": "library",
     "version": "0.47.0"
+  },
+  "dependencies": {
+    "dayjs": "^1.11.13",
+    "react-native-gesture-handler": "^2.22.1"
   }
 }

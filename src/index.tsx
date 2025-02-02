@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import DayView from './DayView';
 import type { TimetableProps } from './types';
 import WeekView from './WeekView';
@@ -16,13 +16,9 @@ const Timetable: React.FC<TimetableProps> = ({
   return (
     <View style={styles.container}>
       <Text style={styles.header}>{currentDate.toDateString()}</Text>
-      <ScrollView style={styles.content}>
-      {mode === 'day' ? (
-          <DayView events={events} startHour={startHour} endHour={endHour} onEventPress={onEventPress} />
-        ) : (
-          <WeekView events={events} startHour={startHour} endHour={endHour} onEventPress={onEventPress} />
-        )}
-              </ScrollView>
+      <View style={styles.content}>
+        <DayView events={events} startHour={startHour} endHour={endHour} onEventPress={onEventPress} />
+      </View>
     </View>
   );
 };

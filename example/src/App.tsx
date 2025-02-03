@@ -7,36 +7,36 @@ const events = [
     id: '1',
     title: 'Réunion',
     startTime: new Date(2024, 1, 29, 10, 0),
-    endTime: new Date(2024, 1, 29, 11, 0),
+    endTime: new Date(2024, 1, 29, 19, 0),
     color: '#FF5733'
   },
   {
     id: '2',
     title: 'Cours de React Native',
     startTime: new Date(2024, 1, 29, 12, 0),
-    endTime: new Date(2024, 1, 29, 16, 0),
+    endTime: new Date(2024, 1, 29, 13, 16),
     color: '#33B5FF'
   },
   {
     id: '3',
-    title: 'Tests Timetable',
-    startTime: new Date(2024, 1, 29, 13, 0),
+    title: 'Rouge',
+    startTime: new Date(2024, 1, 29, 13, 15),
     endTime: new Date(2024, 1, 29, 14, 0),
     color: '#FF0000'
   },
   {
     id: '4',
-    title: 'Doublon',
-    startTime: new Date(2024, 1, 29, 14, 0),
-    endTime: new Date(2024, 1, 29, 16, 0),
-    color: '#00FF00'
+    title: 'Vert',
+    startTime: new Date(2024, 1, 29, 13, 16),
+    endTime: new Date(2024, 1, 29, 14, 0),
+    color: 'green'
   }  ,
   {
     id: '5',
-    title: 'sfdsfdsqfsdq',
+    title: 'Orange',
     startTime: new Date(2024, 1, 29, 14, 0),
     endTime: new Date(2024, 1, 29, 16, 0),
-    color: '#00FF00'
+    color: 'orange'
   }
 ];
 

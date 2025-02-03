@@ -17,7 +17,7 @@ const Timetable: React.FC<TimetableProps> = ({
     <View style={styles.container}>
       <Text style={styles.header}>{currentDate.toDateString()}</Text>
       <View style={styles.content}>
-        <DayView events={events} startHour={startHour} endHour={endHour} onEventPress={onEventPress} />
+        <DayView events={events} startHour={startHour} endHour={endHour} slotDuration={1}  onEventPress={onEventPress} />  
       </View>
     </View>
   );

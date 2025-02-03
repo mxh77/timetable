@@ -1,12 +1,13 @@
 import React from 'react';
 import { View, StyleSheet, Text, ScrollView, StatusBar, Dimensions, TouchableOpacity } from 'react-native';
-import type { Event } from './types';
+import type { Event as EventType } from './types';
 
 interface DayViewProps {
-  events: Event[];
+  events: EventType[];
   startHour: number;
   endHour: number;
-  onEventPress?: (event: Event) => void;
+  slotDuration: number; // Durée d'un créneau en minutes (ex: 15, 30, 60)
+  onEventPress?: (event: EventType) => void;
 }
 
 const { width: DEVICE_WIDTH } = Dimensions.get('window');
@@ -14,33 +15,103 @@ const HOUR_HEIGHT = 60; // Hauteur de base pour une heure
 const HOUR_COLUMN_WIDTH = 60; // Largeur de la colonne des heures
 const EVENT_COLUMN_WIDTH = DEVICE_WIDTH - HOUR_COLUMN_WIDTH - 20; // Largeur des événements ajustée à la largeur du device
 
-const DayView: React.FC<DayViewProps> = ({ events, startHour, endHour, onEventPress }) => {
-  // Calculer la position top (en pixels) d'un événement en fonction de son heure de début
-  const getEventTop = (event: Event) => {
-    const eventStartHour = new Date(event.startTime).getHours();
-    const eventStartMinutes = new Date(event.startTime).getMinutes();
-    return ((eventStartHour - startHour) * 60 + eventStartMinutes) * (HOUR_HEIGHT / 60);
-  };
+type TimeSlot = { start: number; end: number; top: number }; // Créneau horaire en minutes
+type Event = { start: number; end: number; id: string };
+type PositionedEvent = Event & { top: number; height: number; width: number; left: number };
 
-  // Calculer la hauteur d'un événement (en pixels) en fonction de sa durée
-  const getEventHeight = (event: Event) => {
-    const eventDuration = (new Date(event.endTime).getTime() - new Date(event.startTime).getTime()) / (1000 * 60); // Durée en minutes
-    return (eventDuration / 60) * HOUR_HEIGHT; // Hauteur en fonction de la durée de l'événement
-  };
+const DayView: React.FC<DayViewProps> = ({ events, startHour, endHour, slotDuration, onEventPress }) => {
+  // Convertir les événements en minutes depuis minuit
+  const convertedEvents: Event[] = events.map(event => ({
+    id: event.id,
+    start: new Date(event.startTime).getHours() * 60 + new Date(event.startTime).getMinutes(),
+    end: new Date(event.endTime).getHours() * 60 + new Date(event.endTime).getMinutes(),
+  }));
 
-  // Gérer les chevauchements entre événements (en les répartissant uniformément sur la largeur disponible)
-  const getEventLeft = (event: Event, overlappingEvents: Event[], columnIndex: number) => {
-    const width = EVENT_COLUMN_WIDTH / overlappingEvents.length; // Largeur de l'événement en fonction du nombre de chevauchements
-    return width * columnIndex; // Position horizontale en pixels
-  };
+  // Diviser la journée en créneaux horaires de slotDuration minutes
+  const timeSlots: TimeSlot[] = Array.from({ length: (endHour - startHour) * (60 / slotDuration) }, (_, i) => {
+    const start = startHour * 60 + i * slotDuration;
+    return { start, end: start + slotDuration, top: (i * slotDuration * HOUR_HEIGHT) / 60 };
+  });
 
-  // Fonction pour vérifier si deux événements se chevauchent
-  const isOverlapping = (event1: Event, event2: Event) => {
-    return (
-      (event1.startTime < event2.endTime && event1.endTime > event2.startTime) ||
-      (event2.startTime < event1.endTime && event2.endTime > event1.startTime)
-    );
-  };
+  // Fonction pour vérifier si un événement chevauche un autre
+  function chevauchement(event: Event, positionedEvent: PositionedEvent) {
+    return (event.start < positionedEvent.end && event.end > positionedEvent.start);
+  }
+
+  // Fonction pour trouver la première colonne disponible
+  function trouverColonneDispo(event: Event, positionedEvents: PositionedEvent[], maxOverlaps: number) {
+    let col = 0;
+
+    while (true) {
+      let collisionTrouvee = false;
+
+      // Vérifier si l'événement chevauche déjà un événement dans la même colonne
+      for (let i = 0; i < positionedEvents.length; i++) {
+        const positionedEvent = positionedEvents[i];
+        if (positionedEvent && positionedEvent.left === col * (EVENT_COLUMN_WIDTH / maxOverlaps) && chevauchement(event, positionedEvent)) {
+          collisionTrouvee = true;
+          break;
+        }
+      }
+
+      // Si aucune collision, la colonne est libre
+      if (!collisionTrouvee) {
+        break;
+      }
+      col++;  // Sinon, on essaye la colonne suivante
+    }
+
+    return col;
+  }
+
+  // Fonction pour positionner un événement
+  function positionnerEvent(event: Event, positionedEvents: PositionedEvent[], maxOverlaps: number) {
+    // Trouver la première colonne disponible
+    const col = trouverColonneDispo(event, positionedEvents, maxOverlaps);
+
+    // Déterminer la position de l'événement
+    const top = (event.start / 1440) * (endHour - startHour) * HOUR_HEIGHT;  // Position verticale basée sur le créneau horaire
+    const left = col * (EVENT_COLUMN_WIDTH / maxOverlaps);  // Position horizontale
+    const width = EVENT_COLUMN_WIDTH / maxOverlaps;  // Largeur de chaque événement
+    const height = ((event.end - event.start) / 1440) * (endHour - startHour) * HOUR_HEIGHT;  // Hauteur proportionnelle au créneau
+
+    // Ajouter l'événement positionné à la liste
+    positionedEvents.push({
+      ...event,
+      top,
+      left,
+      width,
+      height
+    });
+  }
+
+  // Fonction pour positionner tous les événements
+  function positionnerEvenements(convertedEvents: Event[], timeSlots: TimeSlot[]): PositionedEvent[] {
+    let positionedEvents: PositionedEvent[] = [];
+
+    // Compter les chevauchements par créneau
+    let slotOverlaps: Record<number, number> = {};
+    timeSlots.forEach(slot => slotOverlaps[slot.start] = 0);
+    convertedEvents.forEach(event => {
+      timeSlots.forEach(slot => {
+        if (event.start < slot.end && event.end > slot.start) {
+          slotOverlaps[slot.start] = (slotOverlaps[slot.start] ?? 0) + 1;        }
+      });
+    });
+
+    // Déterminer le nombre maximal de chevauchements
+    const maxOverlaps = Math.max(...Object.values(slotOverlaps), 1); // Evite la division par 0
+
+    // Positionner tous les événements
+    convertedEvents.forEach(event => {
+      positionnerEvent(event, positionedEvents, maxOverlaps);
+    });
+
+    return positionedEvents;
+  }
+
+  // Positionner les événements
+  const positionedEvents = positionnerEvenements(convertedEvents, timeSlots);
 
   return (
     <ScrollView style={styles.scrollView} contentContainerStyle={{ height: (endHour - startHour) * HOUR_HEIGHT }}>
@@ -58,12 +129,9 @@ const DayView: React.FC<DayViewProps> = ({ events, startHour, endHour, onEventPr
               <View style={styles.hourLine} />
             </View>
           ))}
-          {events.map((event, eventIndex) => {
-            const top = getEventTop(event);
-            const height = getEventHeight(event);
-
-            // Trouver les événements qui se chevauchent avec l'événement actuel
-            const overlappingEvents = events.filter(e => isOverlapping(e, event));
+          {positionedEvents.map(event => {
+            // Tracer les informations de débogage
+            console.log(`Event ID: ${event.id}, Top: ${event.top}, Height: ${event.height}, Width: ${event.width}, Left: ${event.left}`);
 
             return (
               <View
@@ -71,16 +139,16 @@ const DayView: React.FC<DayViewProps> = ({ events, startHour, endHour, onEventPr
                 style={[
                   styles.eventBox,
                   {
-                    top,
-                    height,
-                    backgroundColor: event.color || '#007AFF',
-                    width: EVENT_COLUMN_WIDTH / overlappingEvents.length,
-                    left: getEventLeft(event, overlappingEvents, overlappingEvents.indexOf(event)),
+                    top: event.top,
+                    height: event.height,
+                    width: event.width,
+                    left: event.left,
+                    backgroundColor: events.find(e => e.id === event.id)?.color || '#007AFF',
                   },
                 ]}
               >
-                <TouchableOpacity onPress={() => onEventPress?.(event)}>
-                  <Text style={styles.eventTitle}>{event.title}</Text>
+                <TouchableOpacity onPress={() => onEventPress?.(events.find(e => e.id === event.id)!)}>
+                  <Text style={styles.eventTitle}>{events.find(e => e.id === event.id)?.title}</Text>
                 </TouchableOpacity>
               </View>
             );

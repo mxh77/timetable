@@ -13,4 +13,5 @@ export interface TimetableProps {
   endHour?: number; // Heure de fin de journée
   primaryColor?: string;
   onEventPress?: (event: Event) => void;
+  onEventChange?: (event: Event) => void;
 }

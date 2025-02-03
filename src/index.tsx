@@ -9,7 +9,8 @@ const Timetable: React.FC<TimetableProps> = ({
   mode = 'day',
   startHour = 8,
   endHour = 18,
-  onEventPress
+  onEventPress,
+  onEventChange
 }) => {
   const [currentDate] = useState(new Date());
 
@@ -17,7 +18,23 @@ const Timetable: React.FC<TimetableProps> = ({
     <View style={styles.container}>
       <Text style={styles.header}>{currentDate.toDateString()}</Text>
       <View style={styles.content}>
-        <DayView events={events} startHour={startHour} endHour={endHour} slotDuration={1}  onEventPress={onEventPress} />  
+        {mode === 'day' ? (
+          <DayView
+            events={events}
+            startHour={startHour}
+            endHour={endHour}
+            slotDuration={1}
+            onEventPress={onEventPress}
+            onEventChange={onEventChange}
+          />
+        ) : (
+          <WeekView
+            events={events}
+            startHour={startHour}
+            endHour={endHour}
+            onEventPress={onEventPress}
+          />
+        )}
       </View>
     </View>
   );

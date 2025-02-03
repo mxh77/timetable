@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { View, StyleSheet, Text, ScrollView, StatusBar, Dimensions, TouchableOpacity } from 'react-native';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring } from 'react-native-reanimated';
 import type { Event as EventType } from './types';
 
 interface DayViewProps {
@@ -8,20 +10,28 @@ interface DayViewProps {
   endHour: number;
   slotDuration: number; // Durée d'un créneau en minutes (ex: 15, 30, 60)
   onEventPress?: (event: EventType) => void;
+  onEventChange?: (event: EventType) => void; // Callback pour gérer le changement de position de l'événement
+  defaultScrollHour?: number; // Heure par défaut pour le défilement initial
 }
 
 const { width: DEVICE_WIDTH } = Dimensions.get('window');
 const HOUR_HEIGHT = 60; // Hauteur de base pour une heure
 const HOUR_COLUMN_WIDTH = 60; // Largeur de la colonne des heures
 const EVENT_COLUMN_WIDTH = DEVICE_WIDTH - HOUR_COLUMN_WIDTH - 20; // Largeur des événements ajustée à la largeur du device
+const MOVE_STEP = 15; // Pas de déplacement en minutes
 
 type TimeSlot = { start: number; end: number; top: number }; // Créneau horaire en minutes
 type Event = { start: number; end: number; id: string };
 type PositionedEvent = Event & { top: number; height: number; width: number; left: number };
 
-const DayView: React.FC<DayViewProps> = ({ events, startHour, endHour, slotDuration, onEventPress }) => {
-  // Convertir les événements en minutes depuis minuit
-  const convertedEvents: Event[] = events.map(event => ({
+const DayView: React.FC<DayViewProps> = ({ events, startHour, endHour, slotDuration, onEventPress, onEventChange, defaultScrollHour = 0 }) => {
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [draggingEvent, setDraggingEvent] = useState<null | EventType>(null);
+
+  //trier les événements par heure de début
+  
+  // Convertir les événements en minutes depuis minuit et les trier par heure de début
+    const convertedEvents: Event[] = events.map(event => ({
     id: event.id,
     start: new Date(event.startTime).getHours() * 60 + new Date(event.startTime).getMinutes(),
     end: new Date(event.endTime).getHours() * 60 + new Date(event.endTime).getMinutes(),
@@ -70,10 +80,10 @@ const DayView: React.FC<DayViewProps> = ({ events, startHour, endHour, slotDurat
     const col = trouverColonneDispo(event, positionedEvents, maxOverlaps);
 
     // Déterminer la position de l'événement
-    const top = (event.start / 1440) * (endHour - startHour) * HOUR_HEIGHT + (HOUR_HEIGHT/2);  // Position verticale basée sur le créneau horaire
+    const top = ((event.start - startHour * 60) / 60) * HOUR_HEIGHT;  // Position verticale basée sur le créneau horaire
     const left = col * (EVENT_COLUMN_WIDTH / maxOverlaps);  // Position horizontale
     const width = EVENT_COLUMN_WIDTH / maxOverlaps;  // Largeur de chaque événement
-    const height = ((event.end - event.start) / 1440) * (endHour - startHour) * HOUR_HEIGHT;  // Hauteur proportionnelle au créneau
+    const height = ((event.end - event.start) / 60) * HOUR_HEIGHT;  // Hauteur proportionnelle au créneau
 
     // Ajouter l'événement positionné à la liste
     positionedEvents.push({
@@ -95,7 +105,8 @@ const DayView: React.FC<DayViewProps> = ({ events, startHour, endHour, slotDurat
     convertedEvents.forEach(event => {
       timeSlots.forEach(slot => {
         if (event.start < slot.end && event.end > slot.start) {
-          slotOverlaps[slot.start] = (slotOverlaps[slot.start] ?? 0) + 1;        }
+          slotOverlaps[slot.start] = (slotOverlaps[slot.start] ?? 0) + 1;        
+        }
       });
     });
 
@@ -113,8 +124,35 @@ const DayView: React.FC<DayViewProps> = ({ events, startHour, endHour, slotDurat
   // Positionner les événements
   const positionedEvents = positionnerEvenements(convertedEvents, timeSlots);
 
+  // Définir la position de défilement initiale
+  useEffect(() => {
+    if (scrollViewRef.current) {
+      const initialScrollPosition = (defaultScrollHour - startHour) * HOUR_HEIGHT;
+      scrollViewRef.current.scrollTo({ y: initialScrollPosition, animated: false });
+    }
+  }, [defaultScrollHour, startHour]);
+
+  // Fonction pour gérer le début du glisser-déposer
+  const handleGestureEvent = (event: any, eventData: EventType) => {
+    if (event.nativeEvent.state === State.ACTIVE) {
+      setDraggingEvent(eventData);
+    } else if (event.nativeEvent.state === State.END) {
+      setDraggingEvent(null);
+      if (onEventChange) {
+        const newStartTime = new Date(eventData.startTime);
+        const newEndTime = new Date(eventData.endTime);
+        const translationY = event.nativeEvent.translationY;
+        const stepHeight = (MOVE_STEP / 60) * HOUR_HEIGHT;
+        const steps = Math.round(translationY / stepHeight);
+        newStartTime.setMinutes(newStartTime.getMinutes() + steps * MOVE_STEP);
+        newEndTime.setMinutes(newEndTime.getMinutes() + steps * MOVE_STEP);
+        onEventChange({ ...eventData, startTime: newStartTime, endTime: newEndTime });
+      }
+    }
+  };
+
   return (
-    <ScrollView style={styles.scrollView} contentContainerStyle={{ height: (endHour - startHour) * HOUR_HEIGHT }}>
+    <ScrollView ref={scrollViewRef} style={styles.scrollView} contentContainerStyle={{ height: (endHour - startHour) * HOUR_HEIGHT }}>
       <View style={styles.container}>
         <View style={{ width: HOUR_COLUMN_WIDTH }}>
           {Array.from({ length: endHour - startHour }, (_, i) => startHour + i).map(hour => (
@@ -130,27 +168,41 @@ const DayView: React.FC<DayViewProps> = ({ events, startHour, endHour, slotDurat
             </View>
           ))}
           {positionedEvents.map(event => {
-            // Tracer les informations de débogage
-            console.log(`Event ID: ${event.id}, Top: ${event.top}, Height: ${event.height}, Width: ${event.width}, Left: ${event.left}`);
+            const animatedTop = useSharedValue(event.top);
+
+            const animatedStyle = useAnimatedStyle(() => {
+              return {
+                top: withSpring(animatedTop.value),
+              };
+            });
 
             return (
-              <View
+              <PanGestureHandler
                 key={event.id}
-                style={[
-                  styles.eventBox,
-                  {
-                    top: event.top,
-                    height: event.height,
-                    width: event.width,
-                    left: event.left,
-                    backgroundColor: events.find(e => e.id === event.id)?.color || '#007AFF',
-                  },
-                ]}
+                onGestureEvent={(e) => {
+                  const stepHeight = (MOVE_STEP / 60) * HOUR_HEIGHT;
+                  const steps = Math.round(e.nativeEvent.translationY / stepHeight);
+                  animatedTop.value = event.top + steps * stepHeight;
+                }}
+                onHandlerStateChange={(e) => handleGestureEvent(e, events.find(e => e.id === event.id)!)}
               >
-                <TouchableOpacity onPress={() => onEventPress?.(events.find(e => e.id === event.id)!)}>
-                  <Text style={styles.eventTitle}>{events.find(e => e.id === event.id)?.title}</Text>
-                </TouchableOpacity>
-              </View>
+                <Animated.View
+                  style={[
+                    styles.eventBox,
+                    animatedStyle,
+                    {
+                      height: event.height,
+                      width: event.width,
+                      left: event.left,
+                      backgroundColor: events.find(e => e.id === event.id)?.color || '#007AFF',
+                    },
+                  ]}
+                >
+                  <TouchableOpacity onPress={() => onEventPress?.(events.find(e => e.id === event.id)!)}>
+                    <Text style={styles.eventTitle}>{events.find(e => e.id === event.id)?.title}</Text>
+                  </TouchableOpacity>
+                </Animated.View>
+              </PanGestureHandler>
             );
           })}
         </View>

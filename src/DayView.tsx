@@ -70,7 +70,7 @@ const DayView: React.FC<DayViewProps> = ({ events, startHour, endHour, slotDurat
     const col = trouverColonneDispo(event, positionedEvents, maxOverlaps);
 
     // Déterminer la position de l'événement
-    const top = (event.start / 1440) * (endHour - startHour) * HOUR_HEIGHT;  // Position verticale basée sur le créneau horaire
+    const top = (event.start / 1440) * (endHour - startHour) * HOUR_HEIGHT + (HOUR_HEIGHT/2);  // Position verticale basée sur le créneau horaire
     const left = col * (EVENT_COLUMN_WIDTH / maxOverlaps);  // Position horizontale
     const width = EVENT_COLUMN_WIDTH / maxOverlaps;  // Largeur de chaque événement
     const height = ((event.end - event.start) / 1440) * (endHour - startHour) * HOUR_HEIGHT;  // Hauteur proportionnelle au créneau

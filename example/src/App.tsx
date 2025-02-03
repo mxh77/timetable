@@ -6,8 +6,8 @@ const events = [
   {
     id: '1',
     title: 'Réunion',
-    startTime: new Date(2024, 1, 29, 10, 0),
-    endTime: new Date(2024, 1, 29, 19, 0),
+    startTime: new Date(2024, 1, 29, 2, 0),
+    endTime: new Date(2024, 1, 29, 4, 0),
     color: '#FF5733'
   },
   {
@@ -34,8 +34,8 @@ const events = [
   {
     id: '5',
     title: 'Orange',
-    startTime: new Date(2024, 1, 29, 14, 0),
-    endTime: new Date(2024, 1, 29, 16, 0),
+    startTime: new Date(2024, 1, 29, 20, 0),
+    endTime: new Date(2024, 1, 29, 22, 0),
     color: 'orange'
   }
 ];

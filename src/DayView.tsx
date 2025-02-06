@@ -9,9 +9,10 @@ interface DayViewProps {
   startHour: number;
   endHour: number;
   slotDuration: number; // Durée d'un créneau en minutes (ex: 15, 30, 60)
+  defaultScrollHour?: number; // Heure par défaut pour le défilement initial
+  currentDate?: Date; // Date actuelle
   onEventPress?: (event: EventType) => void;
   onEventChange?: (event: EventType) => void; // Callback pour gérer le changement de position de l'événement
-  defaultScrollHour?: number; // Heure par défaut pour le défilement initial
 }
 
 const { width: DEVICE_WIDTH } = Dimensions.get('window');
@@ -24,17 +25,27 @@ type TimeSlot = { start: number; end: number; top: number }; // Créneau horaire
 type Event = { start: number; end: number; id: string };
 type PositionedEvent = Event & { top: number; height: number; width: number; left: number };
 
-const DayView: React.FC<DayViewProps> = ({ events, startHour, endHour, slotDuration, onEventPress, onEventChange, defaultScrollHour = 0 }) => {
+const DayView: React.FC<DayViewProps> = ({ events, startHour, endHour, slotDuration, onEventPress, onEventChange, defaultScrollHour = 0, currentDate }) => {
   const scrollViewRef = useRef<ScrollView>(null);
-  const [draggingEvent, setDraggingEvent] = useState<null | EventType>(null);
+  const [_draggingEvent, setDraggingEvent] = useState<EventType | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<EventType | null>(null);
+  const [bubblePosition, setBubblePosition] = useState<{ top: number; left: number } | null>(null);
 
-  //trier les événements par heure de début
-  
+  // Filtrer les événements pour ne garder que ceux dont la date est la même que currentDate
+  const filteredEvents = events.filter(event => {
+    const eventDate = new Date(event.startTime);
+    return (
+      eventDate.getUTCFullYear() === currentDate?.getUTCFullYear() &&
+      eventDate.getUTCMonth() === currentDate?.getUTCMonth() &&
+      eventDate.getUTCDate() === currentDate?.getUTCDate()
+    );
+  });
+
   // Convertir les événements en minutes depuis minuit et les trier par heure de début
-    const convertedEvents: Event[] = events.map(event => ({
+  const convertedEvents: Event[] = filteredEvents.map(event => ({
     id: event.id,
-    start: new Date(event.startTime).getHours() * 60 + new Date(event.startTime).getMinutes(),
-    end: new Date(event.endTime).getHours() * 60 + new Date(event.endTime).getMinutes(),
+    start: new Date(event.startTime).getUTCHours() * 60 + new Date(event.startTime).getUTCMinutes(),
+    end: new Date(event.endTime).getUTCHours() * 60 + new Date(event.endTime).getUTCMinutes(),
   }));
 
   // Diviser la journée en créneaux horaires de slotDuration minutes
@@ -144,11 +155,16 @@ const DayView: React.FC<DayViewProps> = ({ events, startHour, endHour, slotDurat
         const translationY = event.nativeEvent.translationY;
         const stepHeight = (MOVE_STEP / 60) * HOUR_HEIGHT;
         const steps = Math.round(translationY / stepHeight);
-        newStartTime.setMinutes(newStartTime.getMinutes() + steps * MOVE_STEP);
-        newEndTime.setMinutes(newEndTime.getMinutes() + steps * MOVE_STEP);
+        newStartTime.setUTCMinutes(newStartTime.getUTCMinutes() + steps * MOVE_STEP);
+        newEndTime.setUTCMinutes(newEndTime.getUTCMinutes() + steps * MOVE_STEP);
         onEventChange({ ...eventData, startTime: newStartTime, endTime: newEndTime });
       }
     }
+  };
+
+  const handleEventPress = (event: EventType, top: number, left: number) => {
+    setSelectedEvent(event);
+    setBubblePosition({ top, left });
   };
 
   return (
@@ -157,7 +173,7 @@ const DayView: React.FC<DayViewProps> = ({ events, startHour, endHour, slotDurat
         <View style={{ width: HOUR_COLUMN_WIDTH }}>
           {Array.from({ length: endHour - startHour }, (_, i) => startHour + i).map(hour => (
             <View key={hour} style={styles.hourRow}>
-              <Text style={styles.hourLabel}>{hour}:00</Text>
+              <Text style={styles.hourLabel}>{`${hour}:00`}</Text>
             </View>
           ))}
         </View>
@@ -198,7 +214,7 @@ const DayView: React.FC<DayViewProps> = ({ events, startHour, endHour, slotDurat
                     },
                   ]}
                 >
-                  <TouchableOpacity onPress={() => onEventPress?.(events.find(e => e.id === event.id)!)}>
+                  <TouchableOpacity onPress={() => handleEventPress(events.find(e => e.id === event.id)!, event.top, event.left)}>
                     <Text style={styles.eventTitle}>{events.find(e => e.id === event.id)?.title}</Text>
                   </TouchableOpacity>
                 </Animated.View>
@@ -207,6 +223,13 @@ const DayView: React.FC<DayViewProps> = ({ events, startHour, endHour, slotDurat
           })}
         </View>
       </View>
+      {selectedEvent && bubblePosition && (
+        <View style={[styles.bubble, { top: bubblePosition.top - 40, left: bubblePosition.left + 10 }]}>
+          <Text style={styles.bubbleText}>{selectedEvent.title}</Text>
+          <Text style={styles.bubbleText}>Début: {new Date(selectedEvent.startTime).toLocaleTimeString('fr-FR', { timeZone: 'UTC' })}</Text>
+          <Text style={styles.bubbleText}>Fin: {new Date(selectedEvent.endTime).toLocaleTimeString('fr-FR', { timeZone: 'UTC' })}</Text>
+        </View>
+      )}
     </ScrollView>
   );
 };
@@ -218,12 +241,12 @@ const styles = StyleSheet.create({
     paddingTop: StatusBar.currentHeight || 0,
   },
   hoursContainer: {
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     paddingRight: 5,
   },
   hourRow: {
     height: HOUR_HEIGHT,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   hourLabel: {
     fontSize: 14,
@@ -234,7 +257,7 @@ const styles = StyleSheet.create({
   },
   hourLineContainer: {
     height: HOUR_HEIGHT,
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
   },
   hourLine: {
     borderBottomWidth: 1,
@@ -251,6 +274,19 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 12,
     fontWeight: 'bold',
+  },
+  bubble: {
+    position: 'absolute',
+    backgroundColor: 'white',
+    padding: 10,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    zIndex: 1000,
+  },
+  bubbleText: {
+    fontSize: 12,
+    color: '#333',
   },
 });
 

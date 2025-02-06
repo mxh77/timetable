@@ -12,6 +12,10 @@ export interface TimetableProps {
   startHour?: number; // Heure de début de journée
   endHour?: number; // Heure de fin de journée
   primaryColor?: string;
+  defaultScrollHour?: number;
+  slotDuration?: number;
+  currentDate?: Date;
   onEventPress?: (event: Event) => void;
   onEventChange?: (event: Event) => void;
+  
 }

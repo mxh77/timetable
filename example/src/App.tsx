@@ -1,20 +1,22 @@
 import React, { useState } from 'react';
-import { View, StatusBar, StyleSheet } from 'react-native';
+import {Text, View, StatusBar, StyleSheet } from 'react-native';
 import Timetable from '../../src/index';
+//import Timetable from "react-native-timetable";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 const initialEvents = [
   {
     id: '1',
     title: 'Réunion',
-    startTime: new Date(2024, 1, 29, 12, 0),
-    endTime: new Date(2024, 1, 29, 18, 0),
+    startTime: new Date(2024, 2, 10, 1, 0),
+    endTime: new Date(2024, 2, 10, 2, 0),
     color: '#FF5733'
   },
+  /*
   {
     id: '2',
     title: 'Cours de React Native',
-    startTime: new Date(2024, 1, 29, 12, 0),
+    startTime: new Date(2024, 1, 29, 10, 0),
     endTime: new Date(2024, 1, 29, 13, 15),
     color: '#33B5FF'
   },
@@ -22,7 +24,7 @@ const initialEvents = [
     id: '3',
     title: 'Rouge',
     startTime: new Date(2024, 1, 29, 13, 15),
-    endTime: new Date(2024, 1, 29, 14, 0),
+    endTime: new Date(2024, 1, 29, 15, 0),
     color: '#FF0000'
   },
   {
@@ -39,16 +41,19 @@ const initialEvents = [
     endTime: new Date(2024, 1, 29, 22, 0),
     color: 'orange'
   }
+    */
 ];
+
+console.log("Initi events", initialEvents);
 
 const App = () => {
   const [events, setEvents] = useState(initialEvents);
 
-  const handleEventChange = (updatedEvent: { 
-    id: string; 
-    title: string; 
-    startTime: Date; 
-    endTime: Date; 
+  const handleEventChange = (updatedEvent: {
+    id: string;
+    title: string;
+    startTime: Date;
+    endTime: Date;
     color?: string; // Permet `undefined`
   }) => {
     setEvents((prevEvents) =>
@@ -57,15 +62,21 @@ const App = () => {
       )
     );
   };
-  
-    return (
+
+  return (
     <View style={styles.container}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
+      <View style={{height: 0, backgroundColor: "white"}}>
+        <Text>Salut</Text>
+      </View>
+      <GestureHandlerRootView >
         <Timetable
           events={events}
           mode="day"
           startHour={0}
           endHour={24}
+          slotDuration={15}
+          defaultScrollHour={8}
+          currentDate={new Date(2024, 2, 10, 1, 0)}
           onEventChange={handleEventChange}
         />
       </GestureHandlerRootView>

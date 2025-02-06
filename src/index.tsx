@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Button } from 'react-native';
 import DayView from './DayView';
 import type { TimetableProps } from './types';
 import WeekView from './WeekView';
@@ -9,32 +9,56 @@ const Timetable: React.FC<TimetableProps> = ({
   mode = 'day',
   startHour = 8,
   endHour = 18,
+  defaultScrollHour = 8,
+  slotDuration = 15,
+  currentDate = new Date(),
   onEventPress,
-  onEventChange
+  onEventChange,
 }) => {
-  const [currentDate] = useState(new Date());
+  const [currentDateState, setCurrentDateState] = useState(currentDate);
 
+  const goToPreviousDay = () => {
+    setCurrentDateState(prevDate => {
+      const newDate = new Date(prevDate);
+      newDate.setDate(newDate.getDate() - 1);
+      return newDate;
+    });
+  };
+
+  const goToNextDay = () => {
+    setCurrentDateState(prevDate => {
+      const newDate = new Date(prevDate);
+      newDate.setDate(newDate.getDate() + 1);
+      return newDate;
+    });
+  };
+
+  const formatDate = (date: Date) => {
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0'); // Les mois commencent à 0
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+  
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>{currentDate.toDateString()}</Text>
+      <View style={styles.navigation}>
+        <Button title="Précédent" onPress={goToPreviousDay} />
+        <Text style={styles.header}>{formatDate(currentDateState)}</Text>
+        <Button title="Suivant" onPress={goToNextDay} />
+      </View>
       <View style={styles.content}>
-        {mode === 'day' ? (
           <DayView
-            events={events}
+          key={currentDateState.toISOString()}  // Utiliser la date comme clé 
+          events={events}
             startHour={startHour}
             endHour={endHour}
-            slotDuration={1}
+            slotDuration={slotDuration}
+            defaultScrollHour={defaultScrollHour}
+            currentDate={currentDateState}
             onEventPress={onEventPress}
             onEventChange={onEventChange}
           />
-        ) : (
-          <WeekView
-            events={events}
-            startHour={startHour}
-            endHour={endHour}
-            onEventPress={onEventPress}
-          />
-        )}
       </View>
     </View>
   );
@@ -45,12 +69,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff'
   },
+  navigation: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 10,
+  },
   header: {
     fontSize: 18,
     fontWeight: 'bold',
     textAlign: 'center',
-    padding: 10,
-    backgroundColor: '#f0f0f0'
   },
   content: {
     flex: 1

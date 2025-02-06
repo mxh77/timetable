@@ -16,6 +16,7 @@
     "react-dom": "18.3.1",
     "react-native": "0.76.6",
     "react-native-svg": "^15.11.1",
+    "react-native-timetable": "file:../src/react-native-timetable-1.0.0.tgz",
     "react-native-web": "~0.19.13"
   },
   "devDependencies": {
